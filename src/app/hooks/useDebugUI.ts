@@ -20,8 +20,13 @@ export const useDebugUI = () => {
     rotationSpeed: { value: 0.005, min: 0, max: 0.02, step: 0.001 },
   });
 
+  const groundControls = useControls("Ground", {
+    offset: { value: 0.0, min: 0.0, max: 20, step: 0.001 },
+  });
+
   return {
     lighting: lightingControls,
     model: modelControls,
+    groundControls,
   };
 };
