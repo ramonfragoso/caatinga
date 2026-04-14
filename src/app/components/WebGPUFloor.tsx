@@ -4,13 +4,13 @@ import { MeshStandardNodeMaterial } from 'three/webgpu';
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { playerPosition } from "./Player";
-import { Fn, fract, sin, dot, vec2, cos, floor, uniformArray, mix, Loop, float, positionLocal, vec3, uint } from 'three/tsl';
+import { Fn, fract, sin, dot, vec2, cos, floor, uniformArray, mix, Loop, float, positionLocal, vec3, uint, uniform, step } from 'three/tsl';
 
-const CHUNK_SIZE = 200;
-const CHUNK_COUNT = 9;
+const CHUNK_SIZE = 3000;
+const CHUNK_COUNT = 9; // 5x5
 
 function worldToChunkIndex(axis: number) {
-  return Math.floor(axis / 60);
+  return Math.floor(axis / 900);
 }
 
 function getChunkPositions(pos: THREE.Vector3) {
@@ -29,13 +29,15 @@ function getChunkPositions(pos: THREE.Vector3) {
   return chunks
 }
 
-const chunkOffsets = uniformArray(
-  Array.from({ length: CHUNK_COUNT }, () => new THREE.Vector2(0, 0)),
-  'vec2'
+const chunkUniforms = Array.from({ length: CHUNK_COUNT }, () =>
+  uniform(new THREE.Vector2(0, 0), 'vec2')
 )
 
 const materials = Array.from({ length: CHUNK_COUNT }, () =>
-  new MeshStandardNodeMaterial({ color: '#1122ff', wireframe: true })
+  new MeshStandardNodeMaterial({
+    color: '#1122ff',
+    // wireframe: true 
+  })
 );
 
 const hash = Fn(([p]: any, _builder: unknown) => {
@@ -78,19 +80,65 @@ const fbm = Fn(([p]: any, _builder: unknown) => {
 })
 
 materials.forEach((material, i) => {
-  const chunkOffset = chunkOffsets.element(uint(i));
-  const worldPos = vec2(positionLocal.x, positionLocal.y.negate()).add(chunkOffset);
-  const regional = fbm(worldPos.mul(float(0.001)));
-  const detail = fbm(worldPos.mul(float(0.008)));
-  const h = regional.mul(detail).mul(float(300.0));
+  const worldPos = vec2(positionLocal.x, positionLocal.y.negate()).add(chunkUniforms[i]);
+  const regional = fbm(worldPos.mul(float(0.0008)));
+  const detail = fbm(worldPos.mul(float(0.004)));
+  const h = regional.mul(detail).mul(float(500.0));
+
+  const desertColors = uniformArray([
+    // new THREE.Color('#f7d16a'), // 7/7
+    // new THREE.Color('#f6bc4e'), // 6/7
+    new THREE.Color('#f5ae38'), // 5/7
+    new THREE.Color('#f3a024'), // 4/7
+    new THREE.Color('#ef8f2b'), // 3/7
+    new THREE.Color('#ea7e2b'), // 2/7
+    new THREE.Color('#e56d2a'), // 1/7
+    new THREE.Color('#e05c2a'), // 0/7
+  ], 'color');
+
+  const c0 = desertColors.element(uint(0));
+  const c1 = desertColors.element(uint(1));
+  const c2 = desertColors.element(uint(2));
+  const c3 = desertColors.element(uint(3));
+  const c4 = desertColors.element(uint(4));
+  const c5 = desertColors.element(uint(5));
+
+  const t0 = float(-2);
+  const t1 = float(-1);
+  const t2 = float(0);
+  const t3 = float(1);
+  const t4 = float(2);
+
+  const w0 = float(1).sub(step(t0, h));
+  const w1 = step(t0, h).mul(float(1).sub(step(t1, h)));
+  const w2 = step(t1, h).mul(float(1).sub(step(t2, h)));
+  const w3 = step(t2, h).mul(float(1).sub(step(t3, h)));
+  const w4 = step(t3, h).mul(float(1).sub(step(t4, h)));
+  const w5 = step(t4, h);
+
+  material.colorNode = c0
+    .mul(w0)
+    .add(c1.mul(w1))
+    .add(c2.mul(w2))
+    .add(c3.mul(w3))
+    .add(c4.mul(w4))
+    .add(c5.mul(w5))
 
   material.positionNode = vec3(positionLocal.x, positionLocal.y, h)
 });
 
 export function WebGPUFloor() {
   const meshRefs = useRef<(THREE.Mesh | null)[]>(Array.from({ length: CHUNK_COUNT }, () => null));
+  const lastChunk = useRef({ x: NaN, z: NaN });
 
   useFrame(() => {
+    const currentChunkX = worldToChunkIndex(playerPosition.x);
+    const currentChunkZ = worldToChunkIndex(playerPosition.z);
+
+    if (currentChunkX === lastChunk.current.x && currentChunkZ === lastChunk.current.z) return;
+
+    lastChunk.current = { x: currentChunkX, z: currentChunkZ };
+
     const chunkPositions = getChunkPositions(playerPosition);
 
     meshRefs.current.forEach((mesh, i) => {
@@ -99,10 +147,9 @@ export function WebGPUFloor() {
         mesh.position.x = pos.chunkX;
         mesh.position.y = 0;
         mesh.position.z = pos.chunkZ;
-        (chunkOffsets.array as THREE.Vector2[])[i].set(pos.chunkX, pos.chunkZ);
+        chunkUniforms[i].value.set(pos.chunkX, pos.chunkZ);
       }
     });
-
   });
 
   return (
@@ -115,7 +162,7 @@ export function WebGPUFloor() {
             meshRefs.current[i] = el;
           }}
         >
-          <planeGeometry args={[200, 200, 20, 20]} />
+          <planeGeometry args={[CHUNK_SIZE, CHUNK_SIZE, 16, 16]} />
           <primitive object={materials[i]} attach="material" />
         </mesh>
       ))}

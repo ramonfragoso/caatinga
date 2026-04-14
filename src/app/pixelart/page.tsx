@@ -1,9 +1,10 @@
 "use client";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { Suspense, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { Leva } from "leva";
+import { fog, rangeFogFactor, color, densityFogFactor, float } from "three/tsl";
 import { Lights } from "../components/Lights";
 import { useDebugUI } from "../hooks/useDebugUI";
 import WebGPUCanvas from "../components/WebGPUCanvas";
@@ -55,9 +56,24 @@ function OrbitingSphere({
   );
 }
 
+function SceneFog() {
+  const { scene } = useThree();
+
+  useEffect(() => {
+    const sceneFog = fog(color('#FFD300'), densityFogFactor(float(0.001)));
+    scene.fogNode = sceneFog;
+    return () => {
+      scene.fogNode = null;
+    };
+  }, [scene]);
+
+  return null;
+}
+
 function Scene() {
   return (
     <group scale={.3}>
+      <SceneFog />
       <Lights />
       {/* <TestFloor /> */}
       {/* <Player /> */}
@@ -126,7 +142,7 @@ export default function Home() {
 
       <WebGPUCanvas
         dpr={[1.0, 2.0]}
-        camera={{ position: [1, 1, 1], fov: 45, near: 0.1, far: 5000 }}
+        camera={{ position: [20,20,20], fov: 45, near: 0.1, far: 1500 }}
         shadows
         onCreated={({ camera }) => {
           camera.lookAt(0, 0, 0);
@@ -139,7 +155,7 @@ export default function Home() {
             background
           />
 
-          {/* <PostProcessing normalEdgeStrength={3} radius={1} depthEdgeStrength={3} strength={0.3} threshold={0.8} /> */}
+          <PostProcessing normalEdgeStrength={3} radius={1} depthEdgeStrength={3} strength={0.3} threshold={0.8} />
           <Scene />
           <Player />
         </Suspense>
