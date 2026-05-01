@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Three.js Simple App",
-  description: "A simple Three.js application with a cube and orbit controls",
+  title: "Sunset Ride",
+  description: "Sunset Ride — a scenic train journey through the desert",
 };
 
 export default function RootLayout({

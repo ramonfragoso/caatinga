@@ -6,17 +6,22 @@ import { useFrame } from "@react-three/fiber";
 import { playerPosition } from "./Player";
 import { Fn, fract, sin, dot, vec2, cos, floor, uniformArray, mix, Loop, float, positionLocal, vec3, uint, uniform, step } from 'three/tsl';
 
-const CHUNK_SIZE = 3000;
-const CHUNK_COUNT = 9; // 5x5
+export const FLOOR_CHUNK_SIZE = 3000;
+export const FLOOR_CHUNK_COUNT = 9;
+export const FLOOR_PLANE_SEGMENTS = 16;
+/** Must match chunk stepping used for tile centers (see floorWorldToChunkIndex). */
+export const FLOOR_CHUNK_STRIDE = 900;
 
-function worldToChunkIndex(axis: number) {
-  return Math.floor(axis / 900);
+const CHUNK_SIZE = FLOOR_CHUNK_SIZE;
+
+export function floorWorldToChunkIndex(axis: number) {
+  return Math.floor(axis / FLOOR_CHUNK_STRIDE);
 }
 
-function getChunkPositions(pos: THREE.Vector3) {
+export function getFloorChunkPositions(pos: THREE.Vector3) {
   const chunks: { chunkX: number; chunkZ: number }[] = [];
-  const currentChunkX = worldToChunkIndex(pos.x);
-  const currentChunkZ = worldToChunkIndex(pos.z);
+  const currentChunkX = floorWorldToChunkIndex(pos.x);
+  const currentChunkZ = floorWorldToChunkIndex(pos.z);
 
   for (let cx = -1; cx <= 1; cx++) {
     for (let cz = -1; cz <= 1; cz++) {
@@ -29,11 +34,11 @@ function getChunkPositions(pos: THREE.Vector3) {
   return chunks
 }
 
-const chunkUniforms = Array.from({ length: CHUNK_COUNT }, () =>
+const chunkUniforms = Array.from({ length: FLOOR_CHUNK_COUNT }, () =>
   uniform(new THREE.Vector2(0, 0), 'vec2')
 )
 
-const materials = Array.from({ length: CHUNK_COUNT }, () =>
+const materials = Array.from({ length: FLOOR_CHUNK_COUNT }, () =>
   new MeshStandardNodeMaterial({
     color: '#1122ff',
     // wireframe: true 
@@ -81,7 +86,7 @@ const fbm = Fn(([p]: any, _builder: unknown) => {
 
 materials.forEach((material, i) => {
   const worldPos = vec2(positionLocal.x, positionLocal.y.negate()).add(chunkUniforms[i]);
-  const regional = fbm(worldPos.mul(float(0.0008)));
+  const regional = fbm(worldPos.mul(float(0.0002)));
   const detail = fbm(worldPos.mul(float(0.004)));
   const h = regional.mul(detail).mul(float(500.0));
 
@@ -128,18 +133,18 @@ materials.forEach((material, i) => {
 });
 
 export function WebGPUFloor() {
-  const meshRefs = useRef<(THREE.Mesh | null)[]>(Array.from({ length: CHUNK_COUNT }, () => null));
+  const meshRefs = useRef<(THREE.Mesh | null)[]>(Array.from({ length: FLOOR_CHUNK_COUNT }, () => null));
   const lastChunk = useRef({ x: NaN, z: NaN });
 
   useFrame(() => {
-    const currentChunkX = worldToChunkIndex(playerPosition.x);
-    const currentChunkZ = worldToChunkIndex(playerPosition.z);
+    const currentChunkX = floorWorldToChunkIndex(playerPosition.x);
+    const currentChunkZ = floorWorldToChunkIndex(playerPosition.z);
 
     if (currentChunkX === lastChunk.current.x && currentChunkZ === lastChunk.current.z) return;
 
     lastChunk.current = { x: currentChunkX, z: currentChunkZ };
 
-    const chunkPositions = getChunkPositions(playerPosition);
+    const chunkPositions = getFloorChunkPositions(playerPosition);
 
     meshRefs.current.forEach((mesh, i) => {
       if (mesh) {
@@ -154,7 +159,7 @@ export function WebGPUFloor() {
 
   return (
     <>
-      {Array.from({ length: CHUNK_COUNT }, (_, i) => (
+      {Array.from({ length: FLOOR_CHUNK_COUNT }, (_, i) => (
         <mesh
           key={i}
           rotation={[-Math.PI / 2, 0, 0]}
@@ -162,7 +167,7 @@ export function WebGPUFloor() {
             meshRefs.current[i] = el;
           }}
         >
-          <planeGeometry args={[CHUNK_SIZE, CHUNK_SIZE, 16, 16]} />
+          <planeGeometry args={[CHUNK_SIZE, CHUNK_SIZE, FLOOR_PLANE_SEGMENTS, FLOOR_PLANE_SEGMENTS]} />
           <primitive object={materials[i]} attach="material" />
         </mesh>
       ))}
