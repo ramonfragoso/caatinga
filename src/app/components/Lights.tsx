@@ -175,17 +175,18 @@ export function Lights() {
   } = lighting;
 
   const pointLightRef = useRef<THREE.PointLight>(null!);
+  const dirLightRef = useRef<THREE.DirectionalLight>(null!);
 
   useHelper(showHelpers ? pointLightRef : null, THREE.PointLightHelper, 0.5, pointColor);
+  useHelper(showHelpers ? dirLightRef : null, THREE.DirectionalLightHelper, 1, directionalColor);
 
   return (
     <>
       <ambientLight intensity={ambientIntensity} />
 
-      {/*
       <directionalLight
-        ref={directionalLightRef}
-        position={directionalPosition as [number, number, number]}
+        ref={dirLightRef}
+        position={[0,5,0]}
         intensity={directionalIntensity}
         color={directionalColor}
         castShadow
@@ -198,7 +199,6 @@ export function Lights() {
         shadow-camera-top={22}
         shadow-camera-bottom={-22}
       />
-      */}
 
       {/* <OrbitingDirectionalLight
         radius={12}
