@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sunset Ride",
-  description: "Sunset Ride — a scenic train journey through the desert",
+  title: "Caatinga",
+  description: "Caatinga — the Brazilian sertão during the Great Drought of 1877",
 };
 
 export default function RootLayout({
