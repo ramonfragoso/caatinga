@@ -54,6 +54,65 @@ function OrbitingDirectionalLight({
   );
 }
 
+// Angled sun whose shadow box follows the player. A small box that tracks the
+// camera keeps shadows crisp everywhere over an effectively infinite desert,
+// instead of a huge fixed box pinned to the origin.
+const SUN_OFFSET = new THREE.Vector3(80, 45, 40); // target -> sun (low-ish = long shadows)
+const SUN_BOX = 40; // ortho half-extent of the shadow frustum (smaller = crisper)
+const SUN_MAP = 2048; // shadow map resolution (higher = crisper)
+const SUN_FAR = 250;
+const SUN_TEXEL = (SUN_BOX * 2) / SUN_MAP; // world units per shadow texel
+
+function FollowSun({
+  intensity,
+  color,
+  showHelpers,
+}: {
+  intensity: number;
+  color: string;
+  showHelpers: boolean;
+}) {
+  const ref = useRef<THREE.DirectionalLight>(null!);
+  const camera = useThree((s) => s.camera);
+
+  useHelper(showHelpers ? ref : null, THREE.DirectionalLightHelper, 1, color);
+
+  useLayoutEffect(() => {
+    ref.current?.shadow.camera.updateProjectionMatrix();
+  }, []);
+
+  useFrame(() => {
+    const light = ref.current;
+    if (!light) return;
+    // Center the shadow box on the player, snapped to whole shadow-texels so the
+    // low-res map doesn't shimmer/swim while walking. (World-XZ snap is an
+    // approximation of true light-space snap — good enough for a high sun.)
+    const fx = Math.round(camera.position.x / SUN_TEXEL) * SUN_TEXEL;
+    const fz = Math.round(camera.position.z / SUN_TEXEL) * SUN_TEXEL;
+    light.target.position.set(fx, 0, fz);
+    light.position.set(fx + SUN_OFFSET.x, SUN_OFFSET.y, fz + SUN_OFFSET.z);
+    light.target.updateMatrixWorld();
+  });
+
+  return (
+    <directionalLight
+      ref={ref}
+      intensity={intensity}
+      color={color}
+      castShadow
+      shadow-mapSize-width={SUN_MAP}
+      shadow-mapSize-height={SUN_MAP}
+      shadow-camera-near={0.5}
+      shadow-camera-far={SUN_FAR}
+      shadow-camera-left={-SUN_BOX}
+      shadow-camera-right={SUN_BOX}
+      shadow-camera-top={SUN_BOX}
+      shadow-camera-bottom={-SUN_BOX}
+      shadow-bias={-0.0005}
+    />
+  );
+}
+
 function SpotShadowCameraHelper({
   lightRef,
   visible,
@@ -175,29 +234,17 @@ export function Lights() {
   } = lighting;
 
   const pointLightRef = useRef<THREE.PointLight>(null!);
-  const dirLightRef = useRef<THREE.DirectionalLight>(null!);
 
   useHelper(showHelpers ? pointLightRef : null, THREE.PointLightHelper, 0.5, pointColor);
-  useHelper(showHelpers ? dirLightRef : null, THREE.DirectionalLightHelper, 1, directionalColor);
 
   return (
     <>
       <ambientLight intensity={ambientIntensity} />
 
-      <directionalLight
-        ref={dirLightRef}
-        position={[0,5,0]}
+      <FollowSun
         intensity={directionalIntensity}
         color={directionalColor}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-near={0.5}
-        shadow-camera-far={80}
-        shadow-camera-left={-22}
-        shadow-camera-right={22}
-        shadow-camera-top={22}
-        shadow-camera-bottom={-22}
+        showHelpers={showHelpers}
       />
 
       {/* <OrbitingDirectionalLight
@@ -211,20 +258,13 @@ export function Lights() {
 
       {/* <OrbitingSpotLight showHelpers={showHelpers} spotlight={spotlight} /> */}
 
+      {/* Fill light only — the sun (FollowSun) is the single shadow caster, so
+          this must NOT cast or we get a second, conflicting set of shadows. */}
       <pointLight
         ref={pointLightRef}
         position={pointPosition as [number, number, number]}
         intensity={pointIntensity}
         color={pointColor}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-near={0.5}
-        shadow-camera-far={80}
-        shadow-camera-left={-22}
-        shadow-camera-right={22}
-        shadow-camera-top={22}
-        shadow-camera-bottom={-22}
       />
     </>
   );

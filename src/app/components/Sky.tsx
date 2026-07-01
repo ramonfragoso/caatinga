@@ -67,7 +67,7 @@ const pal = Fn(([t]: [ReturnType<typeof float>]) => {
 })
 
 const liquid3 = Fn(([p]: [ReturnType<typeof vec3>]) => {
-  const t = time.mul(5)
+  const t = time.mul(2)
 
   // Layer 1 — first-order warp
   const q = vec3(
@@ -94,7 +94,7 @@ const liquid3 = Fn(([p]: [ReturnType<typeof vec3>]) => {
 })
 
 const dir = positionLocal.normalize()
-const n = liquid3(dir.mul(4))
+const n = liquid3(dir.mul(2))
 
 const colorNode = vec3(n, n, n)
 

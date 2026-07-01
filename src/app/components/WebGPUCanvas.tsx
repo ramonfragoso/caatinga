@@ -34,6 +34,9 @@ const WebGPUCanvas: FC<Props> = ({ children, ...canvasProps }) => {
         await renderer.init();
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        // Hard 1-tap shadows: cheapest sampling; the crosshatch post-process hides
+        // the aliased edges, so soft PCF isn't worth the cost here.
+        renderer.shadowMap.type = THREE.BasicShadowMap;
         return renderer;
       }}
     >

@@ -2,26 +2,14 @@ import { useControls } from "leva";
 
 export const useDebugUI = () => {
   const lightingControls = useControls("Lighting", {
-    ambientIntensity: { value: 0.3, min: 0, max: 20, step: 0.1 },
-    directionalIntensity: { value: 0.8, min: 0, max: 10, step: 0.1 },
+    ambientIntensity: { value: 1.28, min: 0, max: 2, step: 0.01 },
+    directionalIntensity: { value: 2.3, min: 0, max: 3, step: 0.01 },
     directionalPosition: { value: [0, 3, 8], step: 0.5 },
-    directionalColor: "#ffffff",
-    pointIntensity: { value: 60, min: 0, max: 500, step: 0.1 },
+    directionalColor: "#ffffff4b",
+    pointIntensity: { value: 185, min: 0, max: 500, step: 0.1 },
     pointPosition: { value: [2, 2, -1], step: 0.01 },
     pointColor: "#626262",
-    showHelpers: true,
-  }, { collapsed: true });
-
-  const modelControls = useControls("Model", {
-    position: { value: [0, 0, 0], step: 0.1 },
-    scale: { value: [1, 1, 1], min: 0.1, max: 3, step: 0.1 },
-    rotation: { value: [0, 0, 0], step: 0.1 },
-    autoRotate: false,
-    rotationSpeed: { value: 0.005, min: 0, max: 0.02, step: 0.001 },
-  }, { collapsed: true });
-
-  const groundControls = useControls("Ground", {
-    offset: { value: 0.0, min: 0.0, max: 20, step: 0.001 },
+    showHelpers: false,
   }, { collapsed: true });
 
   const spotlightControls = useControls("Spotlight", {
@@ -42,61 +30,18 @@ export const useDebugUI = () => {
     shadowIntensity: { value: 1, min: 0, max: 1, step: 0.01 },
   }, { collapsed: true });
 
-  const cloudsControls = useControls("Clouds", {
-    cloudCount: { value: 200, min: 1, max: 2000, step: 1 },
-    height: { value: 45, min: 0, max: 80, step: 0.5 },
-    spread: { value: 2000, min: 100, max: 8000, step: 100 },
-    speed: { value: 8, min: 0, max: 60, step: 0.5 },
-  });
-
-  const trainControls = useControls("Train", {
-    yOffset: { value: -13, min: -50, max: 0, step: 0.5 },
+  const playerControls = useControls("Player", {
+    eyeHeight: { value: 1.8, min: 0, max: 10, step: 0.1 },
   }, { collapsed: true });
 
-  const trainEmissiveControls = useControls("Train Emissive", {
-    color: "#ffaa33",
-    intensity: { value: 4, min: 0, max: 50, step: 0.1 },
-  }, { collapsed: true });
-
-  const trainSunControls = useControls("Train Sun", {
-    enabled: true,
-    showHelpers: false,
-    color: "#ffb10e",
-    intensity: { value: 20, min: 0, max: 20, step: 0.1 },
-    position: { value: [40.0, 30.0, 40.0], step: 0.5 },
-    rotation: { value: [0, 0, 0], step: 0.01 },
-    helperSize: { value: 17, min: 0.5, max: 30, step: 0.5 },
-  }, { collapsed: true });
-
-  const trainLightsControls = useControls("Train Lights", {
-    showHelpers: true,
-    light1Color: "#ff4400",
-    light1Intensity: { value: 80, min: 0, max: 500, step: 1 },
-    light1Distance: { value: 10, min: 0, max: 50, step: 0.5 },
-    light1Position: { value: [3, 2, 0], step: 0.1 },
-    light2Color: "#0044ff",
-    light2Intensity: { value: 80, min: 0, max: 500, step: 1 },
-    light2Distance: { value: 10, min: 0, max: 50, step: 0.5 },
-    light2Position: { value: [-3, 2, 0], step: 0.1 },
-    light3Color: "#ffffff",
-    light3Intensity: { value: 60, min: 0, max: 500, step: 1 },
-    light3Distance: { value: 10, min: 0, max: 50, step: 0.5 },
-    light3Position: { value: [0, 4, 3], step: 0.1 },
-    light4Color: "#ffaa00",
-    light4Intensity: { value: 60, min: 0, max: 500, step: 1 },
-    light4Distance: { value: 10, min: 0, max: 50, step: 0.5 },
-    light4Position: { value: [0, 4, -3], step: 0.1 },
+  const vultureControls = useControls("Vulture", {
+    vultureYOffset: { value: 0.15, min: -10, max: 10, step: 0.01 },
   }, { collapsed: true });
 
   return {
     lighting: lightingControls,
     spotlight: spotlightControls,
-    model: modelControls,
-    groundControls,
-    clouds: cloudsControls,
-    train: trainControls,
-    trainLights: trainLightsControls,
-    trainEmissive: trainEmissiveControls,
-    trainSun: trainSunControls,
+    player: playerControls,
+    vulture: vultureControls,
   };
 };
