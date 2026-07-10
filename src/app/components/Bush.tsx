@@ -6,7 +6,7 @@ import { texture as textureNode } from "three/tsl";
 import { getTerrainY } from "./Terrain";
 
 const SPAWN_RANGE = 300;
-const COUNT_PER_TYPE = 70;
+const COUNT_PER_TYPE = 280;
 const STICK_COUNT = 20;
 const ALPHA_TEST = 0.5;
 
@@ -25,7 +25,12 @@ const BUSH_TEXTURES = [
   "/textures/bush2.png",
   "/textures/bush3.png",
 ];
-const BUSH_HEIGHTS = [3, 1.25, 2];
+const BUSH_HEIGHTS = [1.5, 0.625, 1];
+
+// Per-instance size multiplier. Wide enough that the halved bushes still read as
+// a mix of saplings and full-grown shrubs rather than one repeated size.
+const BUSH_SCALE_MIN = 0.55;
+const BUSH_SCALE_MAX = 1.45;
 
 const STICK_TEXTURE = "/textures/dry_sticks.png";
 const STICK_SIZE = 2;
@@ -175,7 +180,8 @@ export function BushBillboard() {
         const x = (seededRandom(seed) - 0.5) * SPAWN_RANGE;
         const z = (seededRandom(seed + 1) - 0.5) * SPAWN_RANGE;
         const yaw = seededRandom(seed + 2) * Math.PI * 2;
-        const scale = 0.8 + seededRandom(seed + 3) * 0.4;
+        const scale =
+          BUSH_SCALE_MIN + seededRandom(seed + 3) * (BUSH_SCALE_MAX - BUSH_SCALE_MIN);
         const y = getTerrainY(x, z);
 
         dummy.position.set(x, y, z);

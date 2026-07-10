@@ -16,7 +16,7 @@ export default function Home() {
   return (
     <div className="w-full h-screen">
       <div className="z-50 absolute overflow-auto top-1 right-1 rounded-md max-w-[370px]">
-        <Leva fill  hidden/>
+        <Leva fill hidden />
       </div>
 
       <WebGPUCanvas
@@ -33,7 +33,7 @@ export default function Home() {
       </WebGPUCanvas>
 
       <EntrySequence
-        progress={100 / 100}
+        progress={progress / 100}
         onComplete={() => {
           controls.enabled = true;
         }}

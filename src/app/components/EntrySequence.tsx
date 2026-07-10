@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Cinzel } from "next/font/google";
+import { deferSceneAudio, getAudioContext, startSceneAudio } from "../audio/context";
 
 const cinzel = Cinzel({ subsets: ["latin"], weight: ["400", "500", "700"] });
 
@@ -45,7 +46,10 @@ export function EntrySequence({
   const startAudio = async () => {
     if (audioRef.current) return;
     try {
-      const ctx = new AudioContext();
+      // Shared with the scene's sound system, so the wind can rise on the same
+      // context as this noise bed fades. Resuming here rides the click gesture.
+      const ctx = getAudioContext();
+      await ctx.resume();
       const res = await fetch("/sounds/noise.wav");
       const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
       const source = ctx.createBufferSource();
@@ -75,7 +79,9 @@ export function EntrySequence({
     window.setTimeout(() => {
       try {
         a.source.stop();
-        a.ctx.close();
+        a.source.disconnect();
+        a.gain.disconnect();
+        // The context stays open — the scene's audio lives on it now.
       } catch {
         /* noop */
       }
@@ -96,6 +102,10 @@ export function EntrySequence({
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setContentVisible(true)));
   }, []);
+
+  // We own the moment the scene's audio starts (at Begin), so suppress the
+  // audio system's first-gesture fallback.
+  useEffect(() => deferSceneAudio(), []);
 
   // Loading -> Title once assets are ready (respecting the minimum display time).
   useEffect(() => {
@@ -120,10 +130,12 @@ export function EntrySequence({
 
     // 1) Fade the three context elements out together.
     setContextExiting(true);
-    // 2) Fade the black overlay away + fade the audio out.
+    // 2) Fade the black overlay away, cross-fading the menu noise into the
+    //    scene's wind bed.
     window.setTimeout(() => {
       setOverlayVisible(false);
       fadeOutAudio(FADE);
+      startSceneAudio();
     }, FADE);
     // 3) Reveal complete — hand control to the parent and unmount.
     window.setTimeout(() => {

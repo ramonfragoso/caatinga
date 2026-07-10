@@ -1,5 +1,5 @@
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three/webgpu";
@@ -18,9 +18,6 @@ import {
 } from "three/tsl";
 import { getTerrainY } from "./Terrain";
 
-const COW_COUNT = 3;
-const SPAWN_RANGE = 120;
-
 // Vertex-animation-texture (VAT) settings. The skeletal `cow_idle` clip is
 // sampled into NUM_FRAMES snapshots once at load; the GPU then interpolates
 // between snapshots per frame. More frames = smoother but more bake time/VRAM.
@@ -28,9 +25,16 @@ const NUM_FRAMES = 24;
 const VAT_WIDTH = 1024; // texels per row; vertices wrap onto multiple rows
 const ANIM_SPEED = 0.25; // playback speed multiplier (clip loops over 1/SPEED s)
 
-function seededRandom(seed: number): number {
-  const x = Math.sin(seed + 1) * 43758.5453123;
-  return x - Math.floor(x);
+/**
+ * Where a cow stands. The cows are one InstancedMesh, so there's no per-cow
+ * Object3D for anything else (the breath emitters) to hang off — whoever places
+ * them owns the placement list and shares it. `y` comes from the terrain;
+ * `rotation` is a full euler so a cow can be tilted onto a slope.
+ */
+export interface CowPlacement {
+  x: number;
+  z: number;
+  rotation: [number, number, number];
 }
 
 interface BakedPrimitive {
@@ -159,11 +163,12 @@ function makeVatMaterial(
 
 useGLTF.preload("/cow.glb");
 
-export function Cows() {
+export function Cows({ placements }: { placements: CowPlacement[] }) {
   const { scene, animations } = useGLTF("/cow.glb");
   const time = useMemo(() => uniform(0), []);
+  const count = placements.length;
 
-  const instancedMeshes = useMemo(() => {
+  const { instancedMeshes, baked } = useMemo(() => {
     // Bake the idle clip into VATs, one per primitive.
     const idleClip =
       animations.find((a) => a.name.toLowerCase().includes("idle")) ??
@@ -178,44 +183,44 @@ export function Cows() {
       if (sm.isSkinnedMesh) baked.push(bakePrimitive(sm, scene, mixer, duration));
     });
 
-    // Per-cow placement: random terrain spot (height-aware) + random Y rotation.
-    const placements = Array.from({ length: COW_COUNT }, (_, i) => {
-      const x = (seededRandom(i * 3 + 0) - 0.5) * SPAWN_RANGE;
-      const z = (seededRandom(i * 3 + 1) - 0.5) * SPAWN_RANGE;
-      const y = getTerrainY(x, z);
-      const q = new THREE.Quaternion().setFromAxisAngle(
-        new THREE.Vector3(0, 1, 0),
-        seededRandom(i * 3 + 2) * Math.PI * 2,
-      );
-      return new THREE.Matrix4().compose(
-        new THREE.Vector3(x, y, z),
-        q,
-        new THREE.Vector3(1, 1, 1),
-      );
-    });
-
-    const world = new THREE.Matrix4();
-    return baked.map((prim) => {
+    const instancedMeshes = baked.map((prim) => {
       const material = makeVatMaterial(
         prim.material as THREE.Material,
         prim.vat,
         prim.rowsPerFrame,
         time,
       );
-      const inst = new THREE.InstancedMesh(prim.geometry, material, COW_COUNT);
+      const inst = new THREE.InstancedMesh(prim.geometry, material, count);
       inst.castShadow = true;
       inst.receiveShadow = true;
       // Instances span the terrain; the per-geometry bounding sphere would
       // wrongly cull the whole batch, so skip frustum culling.
       inst.frustumCulled = false;
-      for (let i = 0; i < COW_COUNT; i++) {
-        world.multiplyMatrices(placements[i], prim.localMatrix);
-        inst.setMatrixAt(i, world);
-      }
-      inst.instanceMatrix.needsUpdate = true;
       return inst;
     });
-  }, [scene, animations, time]);
+
+    return { instancedMeshes, baked };
+    // The VAT bake is expensive, so it must not depend on `placements` — those
+    // are pushed into the instance matrices separately below.
+  }, [scene, animations, time, count]);
+
+  // Re-place the cows whenever the debug controls move them.
+  useEffect(() => {
+    const world = new THREE.Matrix4();
+    const cowMatrix = new THREE.Matrix4();
+    const quat = new THREE.Quaternion();
+    const one = new THREE.Vector3(1, 1, 1);
+
+    placements.forEach(({ x, z, rotation }, i) => {
+      quat.setFromEuler(new THREE.Euler(rotation[0], rotation[1], rotation[2]));
+      cowMatrix.compose(new THREE.Vector3(x, getTerrainY(x, z), z), quat, one);
+      instancedMeshes.forEach((inst, p) => {
+        world.multiplyMatrices(cowMatrix, baked[p].localMatrix);
+        inst.setMatrixAt(i, world);
+        inst.instanceMatrix.needsUpdate = true;
+      });
+    });
+  }, [instancedMeshes, baked, placements]);
 
   useFrame((state) => {
     time.value = state.clock.elapsedTime;

@@ -19,6 +19,7 @@ import { useThree, useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 
 import { useTexture } from "@react-three/drei";
+import { useDebugUI } from "../hooks/useDebugUI";
 
 interface PostProcessingProps {
   any?: any;
@@ -26,10 +27,14 @@ interface PostProcessingProps {
 
 export function PostProcessing({}: PostProcessingProps) {
   const { gl, scene, camera } = useThree();
+  const { hatching } = useDebugUI();
   const hatchTextures = useTexture(
     Array.from({ length: 6 }, (_, i) => `/textures/hatch_${i}.jpg`),
   );
   const postProcessingRef = useRef<THREE.PostProcessing | null>(null);
+  const hatchThresholdsRef = useRef<Record<string, ReturnType<typeof uniform>> | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!gl || !scene || !camera) return;
@@ -122,19 +127,36 @@ export function PostProcessing({}: PostProcessingProps) {
     const h6 = 0.0;
 
     // pick texture based on brightness — darkest areas get densest hatch
-    const hatchValue = brightness.greaterThan(0.5).select(
+    const hatchThreshold0 = uniform(hatching.threshold0);
+    const hatchThreshold1 = uniform(hatching.threshold1);
+    const hatchThreshold2 = uniform(hatching.threshold2);
+    const hatchThreshold3 = uniform(hatching.threshold3);
+    const hatchThreshold4 = uniform(hatching.threshold4);
+    const hatchThreshold5 = uniform(hatching.threshold5);
+    const hatchThreshold6 = uniform(hatching.threshold6);
+    hatchThresholdsRef.current = {
+      threshold0: hatchThreshold0,
+      threshold1: hatchThreshold1,
+      threshold2: hatchThreshold2,
+      threshold3: hatchThreshold3,
+      threshold4: hatchThreshold4,
+      threshold5: hatchThreshold5,
+      threshold6: hatchThreshold6,
+    };
+
+    const hatchValue = brightness.greaterThan(hatchThreshold0).select(
       1.0, // very bright → no hatch
-      brightness.greaterThan(0.99).select(
+      brightness.greaterThan(hatchThreshold1).select(
         h0, // light shadow → sparse hatch
-        brightness.greaterThan(0.95).select(
+        brightness.greaterThan(hatchThreshold2).select(
           h1,
-          brightness.greaterThan(0.9).select(
+          brightness.greaterThan(hatchThreshold3).select(
             h2,
-            brightness.greaterThan(0.1).select(
+            brightness.greaterThan(hatchThreshold4).select(
               h3,
-              brightness.greaterThan(0.05).select(
+              brightness.greaterThan(hatchThreshold5).select(
                 h4,
-                brightness.greaterThan(0.01).select(h5, h6), // very dark → dense hatch
+                brightness.greaterThan(hatchThreshold6).select(h5, h6), // very dark → dense hatch
               ),
             ),
           ),
@@ -167,6 +189,19 @@ export function PostProcessing({}: PostProcessingProps) {
       postProcessingRef.current = null;
     };
   }, [gl, scene, camera, hatchTextures]);
+
+  // Sync threshold uniforms on change without rebuilding the node graph.
+  useEffect(() => {
+    const thresholds = hatchThresholdsRef.current;
+    if (!thresholds) return;
+    thresholds.threshold0.value = hatching.threshold0;
+    thresholds.threshold1.value = hatching.threshold1;
+    thresholds.threshold2.value = hatching.threshold2;
+    thresholds.threshold3.value = hatching.threshold3;
+    thresholds.threshold4.value = hatching.threshold4;
+    thresholds.threshold5.value = hatching.threshold5;
+    thresholds.threshold6.value = hatching.threshold6;
+  }, [hatching]);
 
   useFrame(({ camera }) => {
     // Transform world-space "toward light" dir ([0,1,0] for light at [0,5,0]→origin)

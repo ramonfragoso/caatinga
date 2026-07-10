@@ -3,14 +3,23 @@ import { useFrame } from "@react-three/fiber";
 import { Vector3, Mesh, Quaternion, Euler } from "three";
 import { useEffect, useRef } from "react";
 import { WebGPUToonMaterial } from "./WebGPUToonMaterial";
-import { getTerrainY } from "./Terrain";
+import { getTerrainY, TERRAIN_SIZE } from "./Terrain";
 import { useDebugUI } from "../hooks/useDebugUI";
 
-const PLAYER_SPEED = 10;
+export const PLAYER_SPEED = 10;
 const PLAYER_MOVE_SMOOTHING = 8;
 
+// Keep the player away from the terrain edge, where the ground stops and the
+// skybox meets nothing.
+const BORDER_MARGIN = 30;
+const WALK_LIMIT = TERRAIN_SIZE / 2 - BORDER_MARGIN;
+
+// Start out on the eastern flats, looking back toward the world origin.
+const START_X = 455;
+const START_Z = 13;
+
 // World position of the player. Exported for use by other components (clouds, etc).
-export const playerPosition = new Vector3(1, 0, 1);
+export const playerPosition = new Vector3(START_X, 0, START_Z);
 
 // First-person controls stay disabled until the entry sequence finishes.
 // The parent flips `controls.enabled` in EntrySequence's onComplete callback.
@@ -18,10 +27,13 @@ export const controls = { enabled: false };
 
 const keys: Record<string, boolean> = {};
 
-const cameraYaw = { value: 0 };
+// Face the world origin: the yaw whose forward vector (-sin y, 0, -cos y) points
+// from the start position back to (0, 0).
+const cameraYaw = { value: Math.atan2(START_X, START_Z) };
 const cameraPitch = { value: 0.1 };
 
-const playerVelocity = new Vector3();
+// Smoothed world velocity. Read by the footstep scheduler to set cadence.
+export const playerVelocity = new Vector3();
 
 const _yawQuat = new Quaternion();
 const _pitchQuat = new Quaternion();
@@ -103,6 +115,10 @@ export function Player() {
 
     playerPosition.x += playerVelocity.x * delta;
     playerPosition.z += playerVelocity.z * delta;
+    // Hard wall at the terrain edge. Clamping the position (rather than zeroing
+    // the velocity) lets the player keep sliding along the border.
+    playerPosition.x = Math.max(-WALK_LIMIT, Math.min(WALK_LIMIT, playerPosition.x));
+    playerPosition.z = Math.max(-WALK_LIMIT, Math.min(WALK_LIMIT, playerPosition.z));
     // Follow the ground: sit the eye at terrain height + the adjustable offset.
     playerPosition.y = getTerrainY(playerPosition.x, playerPosition.z) + eyeHeight;
 
